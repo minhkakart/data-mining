@@ -2,8 +2,6 @@ package com.minhkakart.tlu.datamining.gui;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -13,9 +11,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
+import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -23,7 +19,6 @@ import static com.minhkakart.tlu.datamining.gui.Application.DEFAULT_DIRECTORY;
 
 @SuppressWarnings({"CallToPrintStackTrace", "MagicConstant"})
 public class MainPanel extends JPanel {
-    private static final Log log = LogFactory.getLog(MainPanel.class);
     JDialog loadingDialog = new JDialog();
 
     private final JLabel chosenFileLabel = new JLabel("No file chosen");
@@ -46,7 +41,7 @@ public class MainPanel extends JPanel {
     private final JButton removeMissingButton = new JButton("Remove missing");
     private final JButton normalizeButton = new JButton("Normalize data");
     private final JButton discretizeButton = new JButton("Discretize data");
-    private final JButton dropColumnButton = new JButton("Discretize data");
+    private final JButton dropColumnButton = new JButton("Drop column");
 
     private String[][] fileData;
     private String[] columnNames;
@@ -198,30 +193,57 @@ public class MainPanel extends JPanel {
             if (fillValue == null) return;
 
             // Fill new value to column
-            for (int i = 0; i < columnData.length; i++) {
-                columnData[i] = columnData[i].isEmpty() ? fillValue : columnData[i];
+            for (int i = 0; i < this.columnData.length; i++) {
+                this.columnData[i] = this.columnData[i].isEmpty() ? fillValue : this.columnData[i];
             }
 
             // Update data and table
-            for (int i = 0; i < fileData.length; i++) {
-                fileData[i][selectedColumnIndex] = columnData[i];
-            }
+            fillNewDataToSelectedColumn(this.columnData);
             updateTable();
-
+            checkAnalyzeButton();
         });
+        
+        this.removeMissingButton.addActionListener(e -> {
+            if (selectedColumnIndex == -1) return;
+            
+            // Ask user to confirm drop column
+            int confirm = JOptionPane.showOptionDialog(this, "Confirm drop column", "Confirm", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
+            if (confirm != 0) return;
+
+            // 
+            List<String[]> newData = new ArrayList<>();
+            for (String[] row : fileData) {
+                if (!row[selectedColumnIndex].isEmpty()) {
+                    newData.add(row);
+                }
+            }
+            fileData = newData.toArray(new String[0][]);
+            updateTable();
+            this.columnData = getColumnData(selectedColumnIndex);
+            analyzeColumn(this.columnData);
+            checkAnalyzeButton();
+        });
+        
 
         this.columnAnalysisPanel.add(labelArea);
         this.columnAnalysisPanel.add(buttonArea);
         add(this.columnAnalysisPanel);
     }
+    
+    private void fillNewDataToSelectedColumn(String[] data){
+        if (selectedColumnIndex == -1) return;
+        for (int i = 0; i < fileData.length; i++) {
+            fileData[i][selectedColumnIndex] = columnData[i];
+        }
+    }
 
     private void checkAnalyzeButton() {
-        if (columnData == null) {
+        if (columnData == null || selectedColumnIndex == -1) {
             this.fillMissingButton.setEnabled(false);
             this.removeMissingButton.setEnabled(false);
-
             this.normalizeButton.setEnabled(false);
             this.discretizeButton.setEnabled(false);
+            this.dropColumnButton.setEnabled(false);
             return;
         }
 
@@ -238,6 +260,9 @@ public class MainPanel extends JPanel {
             this.normalizeButton.setEnabled(false);
             this.discretizeButton.setEnabled(false);
         }
+
+        this.dropColumnButton.setEnabled(true);
+
     }
 
     private JRadioButton createLabelSelector(String columnName) {
@@ -250,7 +275,7 @@ public class MainPanel extends JPanel {
                 JRadioButton button = (JRadioButton) this.labelSelectorPanel.getComponent(i);
                 if (button == source) {
                     selectedColumnIndex = i;
-                    this.columnData = getColumnData(i);
+                    this.columnData = getColumnData(selectedColumnIndex);
                     checkAnalyzeButton();
                     analyzeColumn(this.columnData);
                 }
@@ -303,6 +328,8 @@ public class MainPanel extends JPanel {
 
 //            throw new RuntimeException(e);
         }
+
+//        columnAnalysisPanel.revalidate();
     }
 
     private static Stream<Date> convertToDateStream(String[] nonEmptyData) {
