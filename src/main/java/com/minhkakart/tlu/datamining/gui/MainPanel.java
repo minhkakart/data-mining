@@ -223,7 +223,7 @@ public class MainPanel extends JPanel {
             analyzeColumn(this.columnData);
             checkAnalyzeButton();
         });
-        
+
 
         this.columnAnalysisPanel.add(labelArea);
         this.columnAnalysisPanel.add(buttonArea);
@@ -233,7 +233,7 @@ public class MainPanel extends JPanel {
     private void fillNewDataToSelectedColumn(String[] data){
         if (selectedColumnIndex == -1) return;
         for (int i = 0; i < fileData.length; i++) {
-            fileData[i][selectedColumnIndex] = columnData[i];
+            fileData[i][selectedColumnIndex] = data[i];
         }
     }
 
