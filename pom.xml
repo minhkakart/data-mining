@@ -51,8 +51,8 @@
                 <configuration>
                     <mainClass>com.minhkakart.tlu.datamining.Main</mainClass>
                     <arguments>
-                        <argument>-Xms512m</argument>
-                        <argument>-Xmx4g</argument>
+                        <argument>-Xms1024m</argument>
+                        <argument>-Xmx1024m</argument>
                     </arguments>
                 </configuration>
             </plugin>

@@ -9,6 +9,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("ExtractMethodRecommender")
@@ -62,8 +65,6 @@ public class Main {
 
         // Clustering
         long overallStartTime = System.currentTimeMillis();
-        
-        double[][] result = new double[10][2];
 
         System.out.println("Reading data...");
         List<String[]> rawData = new CSVReader(new FileReader("F:\\linh_tinh\\tesst123.csv")).readAll();
@@ -72,21 +73,20 @@ public class Main {
         int k = 2;
         int maxIterations = 100;
         int numFold = 10;
+        double[][] result = new double[numFold][2];
         
-        List<Thread> threads = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            threads.add(cluster(rawData.subList(i*rawData.size()/numFold, (i+1)*rawData.size()/numFold), k, maxIterations, result, i));
+        ExecutorService executor = Executors.newFixedThreadPool(numFold);
+        for (int i = 0; i < numFold; i++) {
+            int start = i * rawData.size() / numFold;
+            int end = (i + 1) * rawData.size() / numFold;
+            executor.submit(cluster(rawData.subList(start, end), k, maxIterations, result, i));
         }
-        
-        for (Thread thread : threads) {
-            thread.start();
-        }
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+
+        executor.shutdown();
+        try {
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
         
         for (int i = 0; i < 10; i++) {
@@ -122,25 +122,24 @@ public class Main {
         System.out.printf("Fold %d finished in: %dms\n", id, endConvertTime - startConvertTime);
         return data;
     }
-    
-    private static Thread cluster(List<String[]> rawData, int k, int maxIterations, double[][] resultBuffer, int id) {
-        return new Thread(() -> {
+
+    private static Runnable cluster(List<String[]> rawData, int k, int maxIterations, double[][] resultBuffer, int id) {
+        return () -> {
             List<double[]> data = convertToDouble(rawData, id);
-            
+
             KMeans kMeans = new KMeans(k, maxIterations);
             System.out.printf("Fold %d Clustering...\n", id);
             long startTime = System.currentTimeMillis();
             List<Integer> labels = kMeans.fit(data);
-            
+
             System.out.printf("Fold %d Calculating metrics...\n", id);
-            double Silhouette = kMeans.getSilhouetteCoefficient(data, labels);
-            double davisBouldin = kMeans.getDaviesBouldinIndex(data, labels);
-            System.out.printf("Fold %d result:\n", id);
+            double silhouette = kMeans.getSilhouetteCoefficient(data, labels);
+            double daviesBouldin = kMeans.getDaviesBouldinIndex(data, labels);
             long endTime = System.currentTimeMillis();
-            System.out.println("Finished in: " + (endTime - startTime) + "ms");
-            resultBuffer[id][0] = Silhouette;
-            resultBuffer[id][1] = davisBouldin;
-        });
+            System.out.printf("Fold %d Finished in: %dms\n", id, (endTime - startTime));
+            resultBuffer[id][0] = silhouette;
+            resultBuffer[id][1] = daviesBouldin;
+        };
     }
 
 }
