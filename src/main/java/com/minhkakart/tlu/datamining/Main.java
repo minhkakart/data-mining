@@ -17,7 +17,7 @@ public class Main {
         long overallStartTime = System.currentTimeMillis();
 
         System.out.println("Reading data...");
-        List<String[]> rawData = new CSVReader(new FileReader("F:\\data\\data.csv")).readAll();
+        List<String[]> rawData = new CSVReader(new FileReader(".\\src\\main\\resources\\data.csv")).readAll();
         rawData = rawData.subList(1, rawData.size());
 
         int k = 2;
