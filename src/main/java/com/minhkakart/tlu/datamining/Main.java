@@ -2,15 +2,18 @@ package com.minhkakart.tlu.datamining;
 
 import com.minhkakart.tlu.datamining.associationrule.AprioriTid;
 import com.minhkakart.tlu.datamining.clustering.KMeans;
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvException;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("ExtractMethodRecommender")
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, CsvException {
         /* Data
         List<Set<String>> transactions = Arrays.asList(
                 new HashSet<>(Arrays.asList("b e f g h".split(" "))),
@@ -58,29 +61,86 @@ public class Main {
         }*/
 
         // Clustering
-        List<double[]> data = Arrays.asList(
-                new double[]{1, 8},
-                new double[]{0, 1},
-                new double[]{2, 0},
-                new double[]{0, 3},
-                new double[]{2, 7}
-        );
+        long overallStartTime = System.currentTimeMillis();
+        
+        double[][] result = new double[10][2];
+
+        System.out.println("Reading data...");
+        List<String[]> rawData = new CSVReader(new FileReader("F:\\linh_tinh\\tesst123.csv")).readAll();
+        rawData = rawData.subList(1, rawData.size());
 
         int k = 2;
         int maxIterations = 100;
-
-        KMeans kMeans = new KMeans(k, maxIterations);
-        List<Integer> labels = kMeans.fit(data);
-        List<double[]> centroids = kMeans.getCentroids();
-
-        System.out.println("Cluster assignments:");
-        for (int i = 0; i < labels.size(); i++) {
-            System.out.println("Data point " + Arrays.toString(data.get(i)) + " is in cluster " + labels.get(i));
+        int numFold = 10;
+        
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            threads.add(cluster(rawData.subList(i*rawData.size()/numFold, (i+1)*rawData.size()/numFold), k, maxIterations, result, i));
         }
-
-        System.out.println("\nCentroids:");
-        for (double[] centroid : centroids) {
-            System.out.println(Arrays.toString(centroid));
+        
+        for (Thread thread : threads) {
+            thread.start();
         }
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        for (int i = 0; i < 10; i++) {
+            System.out.printf("Fold %d: Silhouette: %f, Davies-Bouldin: %f\n", i, result[i][0], result[i][1]);
+        }
+        
+        long overallEndTime = System.currentTimeMillis();
+        System.out.println("Overall finished in: " + (overallEndTime - overallStartTime) + "ms");
+
     }
+
+    private static List<double[]> convertToDouble(List<String[]> rawData, int id) {
+        System.out.printf("Fold %d converting data...\n", id);
+        long startConvertTime = System.currentTimeMillis();
+        List<double[]> data = new ArrayList<>();
+        try {
+            for (int i = 1; i < rawData.size(); i++) {
+                String[] row = rawData.get(i);
+                double[] convertedRow = new double[row.length];
+                for (int j = 0; j < row.length; j++) {
+                    if (row[j].equals("?")) {
+                        convertedRow[j] = 0;
+                        continue;
+                    }
+                    convertedRow[j] = Double.parseDouble(row[j]);
+                }
+                data.add(convertedRow);
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Data must be numeric");
+        }
+        long endConvertTime = System.currentTimeMillis();
+        System.out.printf("Fold %d finished in: %dms\n", id, endConvertTime - startConvertTime);
+        return data;
+    }
+    
+    private static Thread cluster(List<String[]> rawData, int k, int maxIterations, double[][] resultBuffer, int id) {
+        return new Thread(() -> {
+            List<double[]> data = convertToDouble(rawData, id);
+            
+            KMeans kMeans = new KMeans(k, maxIterations);
+            System.out.printf("Fold %d Clustering...\n", id);
+            long startTime = System.currentTimeMillis();
+            List<Integer> labels = kMeans.fit(data);
+            
+            System.out.printf("Fold %d Calculating metrics...\n", id);
+            double Silhouette = kMeans.getSilhouetteCoefficient(data, labels);
+            double davisBouldin = kMeans.getDaviesBouldinIndex(data, labels);
+            System.out.printf("Fold %d result:\n", id);
+            long endTime = System.currentTimeMillis();
+            System.out.println("Finished in: " + (endTime - startTime) + "ms");
+            resultBuffer[id][0] = Silhouette;
+            resultBuffer[id][1] = davisBouldin;
+        });
+    }
+
 }

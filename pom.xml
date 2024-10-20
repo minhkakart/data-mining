@@ -44,6 +44,18 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <mainClass>com.minhkakart.tlu.datamining.Main</mainClass>
+                    <arguments>
+                        <argument>-Xms512m</argument>
+                        <argument>-Xmx4g</argument>
+                    </arguments>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

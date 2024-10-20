@@ -104,4 +104,91 @@ public class KMeans {
     public List<double[]> getCentroids() {
         return centroids;
     }
+    
+    public double getSilhouetteCoefficient(List<double[]> data, List<Integer> labels) {
+        int n = data.size();
+        double[] a = new double[n];
+        double[] b = new double[n];
+        
+        for (int i = 0; i < n; i++) {
+            double sumA = 0.0;
+            double sumB = 0.0;
+            int countA = 0;
+            int countB = 0;
+            
+            for (int j = 0; j < n; j++) {
+                if (i == j) {
+                    continue;
+                }
+                
+                double distance = euclideanDistance(data.get(i), data.get(j));
+                if (labels.get(i) == labels.get(j)) {
+                    sumA += distance;
+                    countA++;
+                } else {
+                    sumB += distance;
+                    countB++;
+                }
+            }
+            
+            a[i] = countA == 0 ? 0 : sumA / countA;
+            b[i] = countB == 0 ? 0 : sumB / countB;
+        }
+        
+        double[] s = new double[n];
+        for (int i = 0; i < n; i++) {
+            s[i] = (b[i] - a[i]) / Math.max(a[i], b[i]);
+        }
+        
+        return Arrays.stream(s).average().orElse(0);
+    }
+    
+    public double getDaviesBouldinIndex(List<double[]> data, List<Integer> labels) {
+        int n = data.size();
+        int m = data.get(0).length;
+        
+        double[] s = new double[k];
+        double[] d = new double[k];
+        double[][] dMatrix = new double[k][k];
+        
+        for (int i = 0; i < k; i++) {
+            double sum = 0.0;
+            int count = 0;
+            
+            for (int j = 0; j < n; j++) {
+                if (labels.get(j) == i) {
+                    sum += euclideanDistance(data.get(j), centroids.get(i));
+                    count++;
+                }
+            }
+            
+            s[i] = count == 0 ? 0 : sum / count;
+        }
+        
+        for (int i = 0; i < k; i++) {
+            for (int j = 0; j < k; j++) {
+                if (i == j) {
+                    continue;
+                }
+                
+                dMatrix[i][j] = (s[i] + s[j]) / euclideanDistance(centroids.get(i), centroids.get(j));
+            }
+        }
+        
+        for (int i = 0; i < k; i++) {
+            double max = Double.MIN_VALUE;
+            for (int j = 0; j < k; j++) {
+                if (i == j) {
+                    continue;
+                }
+                
+                if (dMatrix[i][j] > max) {
+                    max = dMatrix[i][j];
+                }
+            }
+            d[i] = max;
+        }
+        
+        return Arrays.stream(d).average().orElse(0);
+    }
 }

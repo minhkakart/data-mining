@@ -1,6 +1,7 @@
 package com.minhkakart.tlu.datamining.gui;
 
 import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvException;
 
 import javax.swing.*;
@@ -9,10 +10,12 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.minhkakart.tlu.datamining.gui.Application.DEFAULT_DIRECTORY;
@@ -37,11 +40,30 @@ public class MainPanel extends JPanel {
     private final JLabel missingCountLabel = new JLabel(ColumnAnalysis.MISSING_COUNT + "N/A");
     private final JLabel minLabel = new JLabel(ColumnAnalysis.MIN + "N/A");
     private final JLabel maxLabel = new JLabel(ColumnAnalysis.MAX + "N/A");
+    /**
+     * Nút điền dữ liệu thiếu
+     */
     private final JButton fillMissingButton = new JButton("Fill missing");
+    /**
+     * Nút xóa hàng chứa dữ liệu thiếu
+     */
     private final JButton removeMissingButton = new JButton("Remove missing");
-    private final JButton normalizeButton = new JButton("Normalize data");
+    /**
+     * Nút chuẩn hóa dữ liệu
+     */
+    private final JButton normalizeButton = new JButton("Normalize date-time");
+    /**
+     * Nút rời rạc hóa dữ liệu
+     */
     private final JButton discretizeButton = new JButton("Discretize data");
+    /**
+     * Nút xóa cột
+     */
     private final JButton dropColumnButton = new JButton("Drop column");
+    /**
+     * Nút lưu dữ liệu
+     */
+    private final JButton saveButton = new JButton("Save file");
 
     private String[][] fileData;
     private String[] columnNames;
@@ -75,7 +97,15 @@ public class MainPanel extends JPanel {
         this.chosenFileLabel.setBounds(120, 10, 300, 30);
         add(this.chosenFileLabel);
 
-        this.fileChooser.setCurrentDirectory(new File(DEFAULT_DIRECTORY));
+        File currDir;
+        try {
+            currDir = new File(DEFAULT_DIRECTORY);
+        } catch (Exception e) {
+//            e.printStackTrace();
+            currDir = new File(".");
+        }
+
+        this.fileChooser.setCurrentDirectory(currDir);
         this.fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
         this.fileChooser.setMultiSelectionEnabled(false);
         this.fileChooser.setAcceptAllFileFilterUsed(false);
@@ -179,11 +209,13 @@ public class MainPanel extends JPanel {
         this.normalizeButton.setFocusable(false);
         this.discretizeButton.setFocusable(false);
         this.dropColumnButton.setFocusable(false);
+        this.saveButton.setFocusable(false);
         buttonArea.add(this.fillMissingButton);
         buttonArea.add(this.removeMissingButton);
         buttonArea.add(this.normalizeButton);
         buttonArea.add(this.discretizeButton);
         buttonArea.add(this.dropColumnButton);
+        buttonArea.add(this.saveButton);
 
         this.fillMissingButton.addActionListener(e -> {
             if (selectedColumnIndex == -1) return;
@@ -199,15 +231,13 @@ public class MainPanel extends JPanel {
 
             // Update data and table
             fillNewDataToSelectedColumn(this.columnData);
-            updateTable();
-            checkAnalyzeButton();
         });
-        
+
         this.removeMissingButton.addActionListener(e -> {
             if (selectedColumnIndex == -1) return;
-            
-            // Ask user to confirm drop column
-            int confirm = JOptionPane.showOptionDialog(this, "Confirm drop column", "Confirm", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
+
+            // Ask user to confirm remove record
+            int confirm = JOptionPane.showOptionDialog(this, "Confirm remove record", "Confirm", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
             if (confirm != 0) return;
 
             // 
@@ -224,17 +254,88 @@ public class MainPanel extends JPanel {
             checkAnalyzeButton();
         });
 
+        this.normalizeButton.addActionListener(e -> {
+            // Transform date-time to timestamp
+            try {
+                for (int i = 0; i < columnData.length; i++) {
+//                    Calendar calendar = Calendar.getInstance();
+//                    calendar.setTime(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(columnData[i]));
+                    columnData[i] = columnData[i].substring(5, 7);
+                }
+                fillNewDataToSelectedColumn(this.columnData);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+        });
+
+        this.discretizeButton.addActionListener(e -> {
+            // Discretize data
+            List<String> distinct = Arrays.stream(columnData).distinct().collect(Collectors.toList());
+            String showMessage = distinct.stream().reduce("", (acc, elem) -> acc + elem + ": " + distinct.indexOf(elem) + ", ");
+
+            JOptionPane.showMessageDialog(this, showMessage.substring(0, showMessage.length() - 2));
+
+            for (int i = 0; i < columnData.length; i++) {
+                columnData[i] = distinct.indexOf(columnData[i]) + "";
+            }
+            fillNewDataToSelectedColumn(this.columnData);
+        });
+
+
+        // Save button
+        this.saveButton.addActionListener(e -> {
+            JFileChooser saveChooser = new JFileChooser();
+            saveChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            saveChooser.setMultiSelectionEnabled(false);
+            saveChooser.setAcceptAllFileFilterUsed(false);
+            saveChooser.setFileFilter(new FileNameExtensionFilter("CSV Files", "csv"));
+
+            int res = saveChooser.showSaveDialog(this);
+
+            if (res == JFileChooser.APPROVE_OPTION) {
+                String fileName = saveChooser.getSelectedFile().getName() + ".csv";
+                System.out.println(fileName);
+                FileWriter fileWriter = null;
+                CSVWriter csvWriter = null;
+                try {
+                    fileWriter = new FileWriter(saveChooser.getSelectedFile().getAbsolutePath() + ".csv");
+                    csvWriter = new CSVWriter(fileWriter);
+                    List<String[]> data = new ArrayList<>();
+                    data.add(columnNames);
+                    data.addAll(Arrays.stream(fileData).collect(Collectors.toList()));
+                    csvWriter.writeAll(data);
+                } catch (IOException ex) {
+//                    throw new RuntimeException(ex);
+                    ex.printStackTrace();
+                } finally {
+                    if (csvWriter != null) {
+                        try {
+                            csvWriter.close();
+                            fileWriter.close();
+                        } catch (IOException ex) {
+//                            throw new RuntimeException(ex);
+                            ex.printStackTrace();
+                        }
+                    }
+                    JOptionPane.showMessageDialog(this, "Save file successfully");
+                }
+            }
+
+        });
 
         this.columnAnalysisPanel.add(labelArea);
         this.columnAnalysisPanel.add(buttonArea);
         add(this.columnAnalysisPanel);
     }
-    
-    private void fillNewDataToSelectedColumn(String[] data){
+
+    private void fillNewDataToSelectedColumn(String[] data) {
         if (selectedColumnIndex == -1) return;
         for (int i = 0; i < fileData.length; i++) {
             fileData[i][selectedColumnIndex] = data[i];
         }
+        updateTable();
+        checkAnalyzeButton();
     }
 
     private void checkAnalyzeButton() {

@@ -6,7 +6,7 @@ public class Application extends JFrame {
     public static final int WIDTH = 1200;
     public static final int HEIGHT = 800;
 //    public static final String DEFAULT_DIRECTORY = "E:\\TLU_Subject\\Ki_5\\Hoc_may\\BaiTap";
-    public static final String DEFAULT_DIRECTORY = ".";
+    public static final String DEFAULT_DIRECTORY = "./src/main/resources";
     
     public Application() {
         setContentPane(new MainPanel());
