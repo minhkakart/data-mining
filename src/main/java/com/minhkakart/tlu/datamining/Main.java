@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Main {
     public static void main(String[] args) throws IOException, CsvException {
-        
+
         long overallStartTime = System.currentTimeMillis();
 
         System.out.println("Reading data...");
@@ -24,12 +24,12 @@ public class Main {
         int maxIterations = 100;
         int numFold = 10;
         double[][] result = new double[numFold][2];
-        
+
         ExecutorService executor = Executors.newFixedThreadPool(numFold);
         for (int i = 0; i < numFold; i++) {
             int start = i * rawData.size() / numFold;
             int end = (i + 1) * rawData.size() / numFold;
-            executor.submit(cluster(rawData.subList(start, end), k, maxIterations, result, i));
+            executor.submit(cluster(rawData.subList(start, end).toArray(new String[rawData.size()/numFold][]), k, maxIterations, result, i));
         }
 
         executor.shutdown();
@@ -38,23 +38,23 @@ public class Main {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
+
         for (int i = 0; i < 10; i++) {
             System.out.printf("Fold %d: Silhouette: %f, Davies-Bouldin: %f\n", i, result[i][0], result[i][1]);
         }
-        
+
         long overallEndTime = System.currentTimeMillis();
         System.out.println("Overall finished in: " + (overallEndTime - overallStartTime) + "ms");
 
     }
 
-    private static List<double[]> convertToDouble(List<String[]> rawData, int id) {
+    private static double[][] convertToDouble(String[][] rawData, int id) {
         System.out.printf("Fold %d converting data...\n", id);
         long startConvertTime = System.currentTimeMillis();
-        List<double[]> data = new ArrayList<>();
+        double[][] data = new double[rawData.length][rawData[0].length];
         try {
-            for (int i = 1; i < rawData.size(); i++) {
-                String[] row = rawData.get(i);
+            for (int i = 0; i < rawData.length; i++) {
+                String[] row = rawData[i];
                 double[] convertedRow = new double[row.length];
                 for (int j = 0; j < row.length; j++) {
                     if (row[j].equals("?")) {
@@ -63,19 +63,19 @@ public class Main {
                     }
                     convertedRow[j] = Double.parseDouble(row[j]);
                 }
-                data.add(convertedRow);
+                data[i] = convertedRow;
             }
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Data must be numeric");
         }
         long endConvertTime = System.currentTimeMillis();
-        System.out.printf("Fold %d finished in: %dms\n", id, endConvertTime - startConvertTime);
+        System.out.printf("Fold %d converted data in: %dms\n", id, endConvertTime - startConvertTime);
         return data;
     }
 
-    private static Runnable cluster(List<String[]> rawData, int k, int maxIterations, double[][] resultBuffer, int id) {
+    private static Runnable cluster(String[][] rawData, int k, int maxIterations, double[][] resultBuffer, int id) {
         return () -> {
-            List<double[]> data = convertToDouble(rawData, id);
+            double[][] data = convertToDouble(rawData, id);
 
             KMeans kMeans = new KMeans(k, maxIterations);
             System.out.printf("Fold %d Clustering...\n", id);

@@ -5,16 +5,16 @@ import java.util.*;
 public class KMeans {
     private final int k;
     private final int maxIterations;
-    private List<double[]> centroids;
+    private double[][] centroids;
 
     public KMeans(int k, int maxIterations) {
         this.k = k;
         this.maxIterations = maxIterations;
     }
 
-    public List<Integer> fit(List<double[]> data) {
-        int n = data.size();
-        int m = data.get(0).length;
+    public List<Integer> fit(double[][] data) {
+        int n = data.length;
+        int m = data[0].length;
         centroids = initializeCentroids(data);
 
         List<Integer> labels = new ArrayList<>(Collections.nCopies(n, -1));
@@ -27,7 +27,7 @@ public class KMeans {
 
             // Assign clusters
             for (int i = 0; i < n; i++) {
-                int newLabel = findClosestCentroid(data.get(i));
+                int newLabel = findClosestCentroid(data[i]);
                 if (labels.get(i) != newLabel) {
                     labels.set(i, newLabel);
                     converged = false;
@@ -41,7 +41,7 @@ public class KMeans {
             for (int i = 0; i < n; i++) {
                 int label = labels.get(i);
                 for (int j = 0; j < m; j++) {
-                    newCentroids[label][j] += data.get(i)[j];
+                    newCentroids[label][j] += data[i][j];
                 }
                 counts[label]++;
             }
@@ -54,7 +54,7 @@ public class KMeans {
                 }
             }
 
-            centroids = Arrays.asList(newCentroids);
+            centroids = newCentroids;
         }
 
         System.out.println("Converged after " + iterations + " iterations");
@@ -62,15 +62,15 @@ public class KMeans {
         return labels;
     }
 
-    private List<double[]> initializeCentroids(List<double[]> data) {
-        List<double[]> centroids = new ArrayList<>();
+    private double[][] initializeCentroids(double[][] data) {
+        double[][] centroids = new double[k][data[0].length];
         Random random = new Random();
         Set<Integer> chosenIndices = new HashSet<>();
 
-        while (centroids.size() < k) {
-            int index = random.nextInt(data.size());
+        for (int i = 0; i < k; i++) {
+            int index = random.nextInt(data.length);
             if (!chosenIndices.contains(index)) {
-                centroids.add(data.get(index));
+                centroids[i] = data[index];
                 chosenIndices.add(index);
             }
         }
@@ -82,8 +82,8 @@ public class KMeans {
         int closest = -1;
         double minDistance = Double.MAX_VALUE;
 
-        for (int i = 0; i < centroids.size(); i++) {
-            double distance = euclideanDistance(point, centroids.get(i));
+        for (int i = 0; i < centroids.length; i++) {
+            double distance = euclideanDistance(point, centroids[i]);
             if (distance < minDistance) {
                 minDistance = distance;
                 closest = i;
@@ -101,12 +101,12 @@ public class KMeans {
         return Math.sqrt(sum);
     }
 
-    public List<double[]> getCentroids() {
+    public double[][] getCentroids() {
         return centroids;
     }
     
-    public double getSilhouetteCoefficient(List<double[]> data, List<Integer> labels) {
-        int n = data.size();
+    public double getSilhouetteCoefficient(double[][] data, List<Integer> labels) {
+        int n = data.length;
         double[] a = new double[n];
         double[] b = new double[n];
         
@@ -121,8 +121,8 @@ public class KMeans {
                     continue;
                 }
                 
-                double distance = euclideanDistance(data.get(i), data.get(j));
-                if (labels.get(i) == labels.get(j)) {
+                double distance = euclideanDistance(data[i], data[j]);
+                if (labels.get(i).intValue() == labels.get(j).intValue()) {
                     sumA += distance;
                     countA++;
                 } else {
@@ -143,9 +143,8 @@ public class KMeans {
         return Arrays.stream(s).average().orElse(0);
     }
     
-    public double getDaviesBouldinIndex(List<double[]> data, List<Integer> labels) {
-        int n = data.size();
-        int m = data.get(0).length;
+    public double getDaviesBouldinIndex(double[][] data, List<Integer> labels) {
+        int n = data.length;
         
         double[] s = new double[k];
         double[] d = new double[k];
@@ -157,7 +156,7 @@ public class KMeans {
             
             for (int j = 0; j < n; j++) {
                 if (labels.get(j) == i) {
-                    sum += euclideanDistance(data.get(j), centroids.get(i));
+                    sum += euclideanDistance(data[j], centroids[i]);
                     count++;
                 }
             }
@@ -171,7 +170,7 @@ public class KMeans {
                     continue;
                 }
                 
-                dMatrix[i][j] = (s[i] + s[j]) / euclideanDistance(centroids.get(i), centroids.get(j));
+                dMatrix[i][j] = (s[i] + s[j]) / euclideanDistance(centroids[i], centroids[j]);
             }
         }
         
