@@ -1,5 +1,6 @@
 package com.minhkakart.tlu.datamining.gui;
 
+import com.minhkakart.tlu.datamining.utils.HtmlText;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvException;
@@ -36,57 +37,73 @@ public class MainPanel extends JPanel {
 
     private final JPanel columnAnalysisPanel = new JPanel();
     private final JLabel totalCountLabel = new JLabel(ColumnAnalysis.TOTAL_COUNT + "N/A");
-    private final JLabel uniqueCountLabel = new JLabel(ColumnAnalysis.UNIQUE_COUNT + "N/A");
+    private final JLabel distinctLabel = new JLabel(ColumnAnalysis.DISTINCT + "N/A");
     private final JLabel missingCountLabel = new JLabel(ColumnAnalysis.MISSING_COUNT + "N/A");
     private final JLabel minLabel = new JLabel(ColumnAnalysis.MIN + "N/A");
     private final JLabel maxLabel = new JLabel(ColumnAnalysis.MAX + "N/A");
     /**
      * Nút điền dữ liệu thiếu
      */
-    private final JButton fillMissingButton = new JButton("Fill missing");
+    private final JButton fillMissingButton = new JButton(HtmlText.centerText("Fill missing"));
     /**
      * Nút xóa hàng chứa dữ liệu thiếu
      */
-    private final JButton removeMissingButton = new JButton("Remove missing");
+    private final JButton removeMissingButton = new JButton(HtmlText.centerText("Remove missing"));
     /**
      * Nút chuẩn hóa dữ liệu
      */
-    private final JButton normalizeButton = new JButton("Normalize date-time");
+    private final JButton normalizeButton = new JButton(HtmlText.centerText("Normalize date-time"));
     /**
      * Nút rời rạc hóa dữ liệu
      */
-    private final JButton discretizeButton = new JButton("Discretize data");
+    private final JButton discretizeButton = new JButton(HtmlText.centerText("Discretize data"));
     /**
      * Nút xóa cột
      */
-    private final JButton dropColumnButton = new JButton("Drop column");
+    private final JButton dropColumnButton = new JButton(HtmlText.centerText("Drop column"));
     /**
      * Nút lưu dữ liệu
      */
-    private final JButton saveButton = new JButton("Save file");
+    private final JButton saveButton = new JButton(HtmlText.centerText("Save file"));
 
-    private String[][] fileData;
-    private String[] columnNames;
-    private String[] columnData;
+    private final JButton clusteringButton = new JButton("Clustering");
+
+    private String[][] fileData = null;
+    private String[] columnNames = null;
+    private String[] columnData = null;
     private int selectedColumnIndex = -1;
+
+    private final Map<String, String> discretizeData = new HashMap<>();
 
     public MainPanel() {
         setLayout(null);
         setPreferredSize(new Dimension(Application.WIDTH, Application.HEIGHT));
 
-        setUpLoadingDialog();
+        setupLoadingDialog();
         setupFileChooser();
         setupTable();
         initLabelSelectorPanel();
         initColumnAnalysisPanel();
+        initClusteringButton();
     }
 
-    private void setUpLoadingDialog() {
+    private void initClusteringButton() {
+        this.clusteringButton.setBounds(998, 58, 190, 190);
+        this.clusteringButton.addActionListener(e -> {
+            ClusteringPanel clusteringPanel = new ClusteringPanel((JFrame) SwingUtilities.getWindowAncestor(this), fileData, columnNames, discretizeData);
+            clusteringPanel.setVisible(true);
+        });
+
+        add(this.clusteringButton);
+    }
+
+    private void setupLoadingDialog() {
         loadingDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         loadingDialog.setModalityType(Dialog.ModalityType.APPLICATION_MODAL);
         loadingDialog.setResizable(false);
         loadingDialog.setSize(200, 100);
         loadingDialog.setLocationRelativeTo(this);
+        loadingDialog.setAlwaysOnTop(true);
 
         JLabel loadingLabel = new JLabel("Loading...");
         loadingLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -190,20 +207,20 @@ public class MainPanel extends JPanel {
     private void initColumnAnalysisPanel() {
         checkAnalyzeButton();
 
-        this.columnAnalysisPanel.setBounds(420, 50, 400, 200);
+        this.columnAnalysisPanel.setBounds(420, 50, 500, 200);
         this.columnAnalysisPanel.setBorder(BorderFactory.createTitledBorder("Column analysis"));
         this.columnAnalysisPanel.setLayout(null);
 
         JPanel labelArea = new JPanel(new GridLayout(5, 1));
-        labelArea.setBounds(10, 20, 180, 170);
+        labelArea.setBounds(10, 20, 150, 170);
         labelArea.add(this.totalCountLabel);
-        labelArea.add(this.uniqueCountLabel);
+        labelArea.add(this.distinctLabel);
         labelArea.add(this.missingCountLabel);
         labelArea.add(this.minLabel);
         labelArea.add(this.maxLabel);
 
-        JPanel buttonArea = new JPanel(new GridLayout(5, 1, 0, 10));
-        buttonArea.setBounds(230, 20, 160, 170);
+        JPanel buttonArea = new JPanel(new GridLayout(3, 2, 10, 10));
+        buttonArea.setBounds(200, 20, 290, 170);
         this.fillMissingButton.setFocusable(false);
         this.removeMissingButton.setFocusable(false);
         this.normalizeButton.setFocusable(false);
@@ -258,8 +275,9 @@ public class MainPanel extends JPanel {
             // Transform date-time to timestamp
             try {
                 for (int i = 0; i < columnData.length; i++) {
-//                    Calendar calendar = Calendar.getInstance();
-//                    calendar.setTime(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(columnData[i]));
+                    /* Old code
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.setTime(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(columnData[i]));*/
                     columnData[i] = columnData[i].substring(5, 7);
                 }
                 fillNewDataToSelectedColumn(this.columnData);
@@ -273,15 +291,44 @@ public class MainPanel extends JPanel {
             // Discretize data
             List<String> distinct = Arrays.stream(columnData).distinct().collect(Collectors.toList());
             String showMessage = distinct.stream().reduce("", (acc, elem) -> acc + elem + ": " + distinct.indexOf(elem) + ", ");
+            showMessage = showMessage.substring(0, showMessage.length() - 2);
 
-            JOptionPane.showMessageDialog(this, showMessage.substring(0, showMessage.length() - 2));
+            if (!discretizeData.containsKey(columnNames[selectedColumnIndex])) {
+                discretizeData.put(columnNames[selectedColumnIndex], showMessage);
+                for (int i = 0; i < columnData.length; i++) {
+                    columnData[i] = distinct.indexOf(columnData[i]) + "";
+                }
+                fillNewDataToSelectedColumn(this.columnData);
 
-            for (int i = 0; i < columnData.length; i++) {
-                columnData[i] = distinct.indexOf(columnData[i]) + "";
+                JOptionPane.showMessageDialog(this, showMessage);
             }
-            fillNewDataToSelectedColumn(this.columnData);
         });
 
+        this.dropColumnButton.addActionListener(e -> {
+            // Drop column
+            if (selectedColumnIndex == -1) return;
+
+            // Ask user to confirm drop column
+            int confirm = JOptionPane.showOptionDialog(this, "Confirm drop column " + columnNames[selectedColumnIndex], "Confirm", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
+            if (confirm != 0) return;
+
+            // Drop column
+            String[][] newData = new String[fileData.length][fileData[0].length - 1];
+            for (int row = 0; row < fileData.length; row++) {
+                for (int col = 0, newCol = 0; col < fileData[0].length; col++) {
+                    if (col != selectedColumnIndex) {
+                        newData[row][newCol++] = fileData[row][col];
+                    }
+                }
+            }
+            fileData = newData;
+            columnNames = Arrays.stream(columnNames).filter(s -> !s.equals(columnNames[selectedColumnIndex])).toArray(String[]::new);
+            setupLabelSelectorPanel(columnNames);
+            updateTable();
+            selectedColumnIndex = -1;
+            this.columnData = null;
+            checkAnalyzeButton();
+        });
 
         // Save button
         this.saveButton.addActionListener(e -> {
@@ -339,6 +386,9 @@ public class MainPanel extends JPanel {
     }
 
     private void checkAnalyzeButton() {
+        this.saveButton.setEnabled(fileData != null);
+        this.dropColumnButton.setEnabled(true);
+
         if (columnData == null || selectedColumnIndex == -1) {
             this.fillMissingButton.setEnabled(false);
             this.removeMissingButton.setEnabled(false);
@@ -362,7 +412,6 @@ public class MainPanel extends JPanel {
             this.discretizeButton.setEnabled(false);
         }
 
-        this.dropColumnButton.setEnabled(true);
 
     }
 
@@ -391,7 +440,7 @@ public class MainPanel extends JPanel {
 
         // Unique count
         long uniqueCount = Arrays.stream(columnData).distinct().count();
-        this.uniqueCountLabel.setText(ColumnAnalysis.UNIQUE_COUNT + String.valueOf(uniqueCount));
+        this.distinctLabel.setText(ColumnAnalysis.DISTINCT + String.valueOf(uniqueCount));
 
         // Missing count
         long missingCount = Arrays.stream(columnData).filter(String::isEmpty).count();
@@ -456,7 +505,7 @@ public class MainPanel extends JPanel {
     }
 
     private enum ColumnAnalysis {
-        TOTAL_COUNT, UNIQUE_COUNT, MISSING_COUNT, MIN, MAX;
+        TOTAL_COUNT, DISTINCT, MISSING_COUNT, MIN, MAX;
 
         @Override
         public String toString() {

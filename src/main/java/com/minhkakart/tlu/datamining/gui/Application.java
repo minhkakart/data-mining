@@ -5,7 +5,6 @@ import javax.swing.*;
 public class Application extends JFrame {
     public static final int WIDTH = 1200;
     public static final int HEIGHT = 800;
-//    public static final String DEFAULT_DIRECTORY = "E:\\TLU_Subject\\Ki_5\\Hoc_may\\BaiTap";
     public static final String DEFAULT_DIRECTORY = "./src/main/resources";
     
     public Application() {
@@ -18,7 +17,6 @@ public class Application extends JFrame {
         setResizable(false);
         setVisible(true);
         setResizable(false);
-        setAlwaysOnTop(true);
     }
 
     public static void main(String[] args) {

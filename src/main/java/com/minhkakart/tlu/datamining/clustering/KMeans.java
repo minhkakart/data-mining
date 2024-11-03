@@ -2,20 +2,27 @@ package com.minhkakart.tlu.datamining.clustering;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 public class KMeans {
     private final int k;
     private final int maxIterations;
     private double[][] centroids;
+    
+    private double silhouetteCoefficient;
+    private double daviesBouldinIndex;
+    
+    private double[][] trainData;
 
     public KMeans(int k, int maxIterations) {
         this.k = k;
         this.maxIterations = maxIterations;
     }
 
-    public List<Integer> fit(double[][] data) {
-        int n = data.length;
-        int m = data[0].length;
-        centroids = initializeCentroids(data);
+    public void fit(double[][] data) {
+        trainData = data;
+        int n = trainData.length;
+        int m = trainData[0].length;
+        centroids = initializeCentroids(trainData);
 
         List<Integer> labels = new ArrayList<>(Collections.nCopies(n, -1));
         boolean converged = false;
@@ -57,9 +64,9 @@ public class KMeans {
             centroids = newCentroids;
         }
 
-        System.out.println("Converged after " + iterations + " iterations");
+        silhouetteCoefficient = getSilhouetteCoefficient(data, labels);
+        daviesBouldinIndex = getDaviesBouldinIndex(data, labels);
 
-        return labels;
     }
 
     private double[][] initializeCentroids(double[][] data) {
@@ -189,5 +196,29 @@ public class KMeans {
         }
         
         return Arrays.stream(d).average().orElse(0);
+    }
+    
+    public int predict(double[] point) {
+        return findClosestCentroid(point);
+    }
+    
+    public List<Integer> predict(double[][] data) {
+        List<Integer> labels = new ArrayList<>();
+        for (double[] point : data) {
+            labels.add(predict(point));
+        }
+        return labels;
+    }
+    
+    public double getSilhouetteCoefficient() {
+        return silhouetteCoefficient;
+    }
+    
+    public double getDaviesBouldinIndex() {
+        return daviesBouldinIndex;
+    }
+    
+    public double[][] getTrainData() {
+        return trainData;
     }
 }

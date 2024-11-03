@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.minhkakart.tlu.datamining</groupId>
   <artifactId>DataMining</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0</version>
   <build>
     <plugins>
       <plugin>
@@ -18,7 +18,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>com.minhkakart.tlu.datamining.gui.Application</mainClass>
+                  <mainClass>com.minhkakart.tlu.datamining.Main</mainClass>
                 </transformer>
               </transformers>
             </configuration>
